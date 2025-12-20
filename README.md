@@ -62,4 +62,4 @@
 
 ---
 
-Built with ❤️ for better academic productivity.
+Made by Waqar with ❤️ for better academic productivity.
