@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { supabase } from '../supabaseClient';
 
 interface Props {
   onLogin: (user: { name: string; email: string }) => void;
@@ -7,16 +8,60 @@ interface Props {
 
 const Auth: React.FC<Props> = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Reference to C++ logic in cpp-logic-reference/auth_logic.cpp
+  const validatePassword = (pass: string) => {
+    return pass.length >= 8 && /[a-zA-Z]/.test(pass) && /[0-9]/.test(pass);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would be an API call
-    onLogin({ name: formData.name || 'Alex Morgan', email: formData.email });
+    setLoading(true);
+
+    if (!validatePassword(formData.password)) {
+      alert('Password must be at least 8 characters and contain both letters and numbers.');
+      setLoading(false);
+      return;
+    }
+
+    if (isLogin) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (error) {
+        alert(error.message);
+      } else if (data.user) {
+        onLogin({ 
+          name: data.user.user_metadata.full_name || data.user.email?.split('@')[0] || 'User', 
+          email: data.user.email! 
+        });
+      }
+    } else {
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+          }
+        }
+      });
+
+      if (error) {
+        alert(error.message);
+      } else {
+        alert('Check your email for the confirmation link!');
+      }
+    }
+    setLoading(false);
   };
 
   return (
@@ -34,8 +79,8 @@ const Auth: React.FC<Props> = ({ onLogin }) => {
           </div>
           
           <div className="relative z-10 flex items-center gap-3">
-             <div className="bg-white/10 p-2 rounded-xl backdrop-blur-md">
-              <span className="material-symbols-outlined text-3xl text-white">grid_view</span>
+             <div className="bg-white/5 p-2 rounded-xl backdrop-blur-md">
+              <img src="/Time-Table-Clash-Detector/logo.png" alt="Logo" className="size-12 object-contain brightness-0 invert" />
             </div>
             <h1 className="text-white text-2xl font-black tracking-tighter">TimeSmart</h1>
           </div>

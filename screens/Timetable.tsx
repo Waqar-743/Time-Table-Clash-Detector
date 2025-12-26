@@ -7,9 +7,10 @@ interface Props {
   subjects: Subject[];
   onRemove: (id: string) => void;
   onUpdate: (subject: Subject) => void;
+  currentUserEmail?: string;
 }
 
-const Timetable: React.FC<Props> = ({ subjects, onRemove, onUpdate }) => {
+const Timetable: React.FC<Props> = ({ subjects, onRemove, onUpdate, currentUserEmail }) => {
   const days: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const hours = Array.from({ length: 10 }, (_, i) => i + 8); // 08:00 to 17:00
 
@@ -28,6 +29,12 @@ const Timetable: React.FC<Props> = ({ subjects, onRemove, onUpdate }) => {
   };
 
   const handleDragStart = (e: React.DragEvent, subjectId: string) => {
+    const subject = subjects.find(s => s.id === subjectId);
+    if (subject && subject.userEmail !== currentUserEmail) {
+      e.preventDefault();
+      return;
+    }
+
     e.dataTransfer.setData('subjectId', subjectId);
     e.dataTransfer.effectAllowed = 'move';
 
@@ -176,41 +183,49 @@ const Timetable: React.FC<Props> = ({ subjects, onRemove, onUpdate }) => {
                     >
                       {subjects.filter(s => s.day === day).map(subject => {
                         const baseColor = subject.color || '#0C2B4E';
+                        const isOwner = subject.userEmail === currentUserEmail;
                         return (
                           <div
                             key={subject.id}
-                            draggable
+                            draggable={isOwner}
                             onDragStart={(e) => handleDragStart(e, subject.id)}
                             onDragEnd={handleDragEnd}
-                            className={`absolute left-1 right-1 md:left-2 md:right-2 rounded-xl p-3 border-l-4 shadow-sm hover:shadow-xl hover:z-20 transition-all cursor-grab active:cursor-grabbing group/item overflow-hidden`}
+                            className={`absolute left-1 right-1 md:left-2 md:right-2 rounded-xl p-3 border-l-4 shadow-sm hover:shadow-xl hover:z-20 transition-all ${isOwner ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} group/item overflow-hidden`}
                             style={{
                               ...getEventStyle(subject),
                               backgroundColor: `${baseColor}15`, // 15% opacity
                               borderLeftColor: baseColor,
-                              color: baseColor
+                              color: baseColor,
+                              opacity: isOwner ? 1 : 0.7
                             }}
                           >
                             <div className="absolute inset-0 bg-white/40 dark:bg-black/20 -z-10 group-hover/item:opacity-0 transition-opacity"></div>
 
                             <div className="flex justify-between items-start pointer-events-none">
                               <p className="text-[9px] font-black opacity-80 mb-0.5" style={{ color: baseColor }}>{subject.startTime} - {subject.endTime}</p>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onRemove(subject.id); }}
-                                className="opacity-0 group-hover/item:opacity-100 p-0.5 hover:text-red-500 transition-all pointer-events-auto"
-                              >
-                                <span className="material-symbols-outlined text-sm">close</span>
-                              </button>
+                              {isOwner && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onRemove(subject.id); }}
+                                  className="opacity-0 group-hover/item:opacity-100 p-0.5 hover:text-red-500 transition-all pointer-events-auto"
+                                >
+                                  <span className="material-symbols-outlined text-sm">close</span>
+                                </button>
+                              )}
                             </div>
-                            <h4 className="text-[11px] font-black leading-tight line-clamp-2 pointer-events-none" style={{ color: baseColor }}>{subject.title}</h4>
+                            <h4 className="text-[11px] font-black leading-tight line-clamp-2 pointer-events-none" style={{ color: baseColor }}>
+                              {subject.title} {!isOwner && <span className="text-[8px] opacity-60">({subject.userEmail?.split('@')[0]})</span>}
+                            </h4>
                             <div className="mt-auto pt-2 flex items-center gap-1 text-[9px] font-bold opacity-80 pointer-events-none" style={{ color: baseColor }}>
                               <span className="material-symbols-outlined text-[12px]">location_on</span>
                               <span className="truncate">{subject.room}</span>
                             </div>
 
                             {/* Drag handle visual */}
-                            <div className="absolute bottom-1 right-1 opacity-0 group-hover/item:opacity-30">
-                              <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
-                            </div>
+                            {isOwner && (
+                              <div className="absolute bottom-1 right-1 opacity-0 group-hover/item:opacity-30">
+                                <span className="material-symbols-outlined text-[14px]">drag_indicator</span>
+                              </div>
+                            )}
                           </div>
                         );
                       })}

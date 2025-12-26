@@ -1,13 +1,16 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Subject, Conflict } from '../types';
 import { getDayFromDate } from '../utils';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface Props {
   subjects: Subject[];
   conflicts: Conflict[];
   onRemove: (id: string) => void;
+  currentUserEmail?: string;
 }
 
 const StatCard = ({ label, value, subtext, icon, color = 'primary' }: any) => {
@@ -39,10 +42,16 @@ const StatCard = ({ label, value, subtext, icon, color = 'primary' }: any) => {
   );
 };
 
-const Dashboard: React.FC<Props> = ({ subjects, conflicts, onRemove }) => {
+const Dashboard: React.FC<Props> = ({ subjects, conflicts, onRemove, currentUserEmail }) => {
+  const [selectedDay, setSelectedDay] = useState<string>(getDayFromDate(new Date()));
   const currentDay = getDayFromDate(new Date());
+  
   const todaysSchedule = subjects
     .filter(s => s.day === currentDay)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  const selectedDaySchedule = subjects
+    .filter(s => s.day === selectedDay)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const totalHours = subjects.reduce((acc, curr) => {
@@ -50,6 +59,36 @@ const Dashboard: React.FC<Props> = ({ subjects, conflicts, onRemove }) => {
     const [hEnd, mEnd] = curr.endTime.split(':').map(Number);
     return acc + (hEnd + mEnd / 60) - (hStart + mStart / 60);
   }, 0);
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('dashboard-content');
+    if (!element) return;
+    
+    const canvas = await html2canvas(element);
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save('timesmart-timetable.pdf');
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'TimeSmart Timetable',
+          text: 'Check out my academic schedule on TimeSmart!',
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.error('Error sharing:', err);
+      }
+    } else {
+      alert('Sharing is not supported on this browser. Copy the URL to share.');
+    }
+  };
 
   const getStatIconColor = (color: string) => {
     if (color === 'red-500') return 'text-red-500 bg-red-500/10';
@@ -59,7 +98,7 @@ const Dashboard: React.FC<Props> = ({ subjects, conflicts, onRemove }) => {
 
   return (
     <main className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth custom-scrollbar">
-      <div className="max-w-7xl mx-auto flex flex-col gap-6 md:gap-8">
+      <div id="dashboard-content" className="max-w-7xl mx-auto flex flex-col gap-6 md:gap-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl md:text-4xl font-black text-primary dark:text-white tracking-tighter">Dashboard</h2>
@@ -191,23 +230,38 @@ const Dashboard: React.FC<Props> = ({ subjects, conflicts, onRemove }) => {
                 {[
                   { icon: 'add_circle', label: 'Add', to: '/add' },
                   { icon: 'edit_calendar', label: 'Edit', to: '/timetable' },
-                  { icon: 'download', label: 'PDF', action: () => alert('Generating PDF...') },
-                  { icon: 'share', label: 'Share', action: () => alert('Opening share...') },
-                ].map((action, i) => (
-                  <Link
-                    key={i}
-                    to={action.to || '#'}
-                    onClick={action.action}
-                    className="flex flex-col items-center justify-center gap-2 p-3 md:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-primary/5 dark:hover:bg-white/5 group transition-all border border-transparent hover:border-primary/10"
-                  >
-                    <span className="material-symbols-outlined text-accent group-hover:text-primary dark:text-slate-400 dark:group-hover:text-white transition-colors">
-                      {action.icon}
-                    </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-primary dark:group-hover:text-white">
-                      {action.label}
-                    </span>
-                  </Link>
-                ))}
+                  { icon: 'download', label: 'PDF', action: handleDownloadPDF },
+                  { icon: 'share', label: 'Share', action: handleShare },
+                ].map((action, i) => {
+                  const Content = (
+                    <>
+                      <span className="material-symbols-outlined text-accent group-hover:text-primary dark:text-slate-400 dark:group-hover:text-white transition-colors">
+                        {action.icon}
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 group-hover:text-primary dark:group-hover:text-white">
+                        {action.label}
+                      </span>
+                    </>
+                  );
+
+                  return action.to ? (
+                    <Link
+                      key={i}
+                      to={action.to}
+                      className="flex flex-col items-center justify-center gap-2 p-3 md:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-primary/5 dark:hover:bg-white/5 group transition-all border border-transparent hover:border-primary/10"
+                    >
+                      {Content}
+                    </Link>
+                  ) : (
+                    <button
+                      key={i}
+                      onClick={action.action}
+                      className="flex flex-col items-center justify-center gap-2 p-3 md:p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-primary/5 dark:hover:bg-white/5 group transition-all border border-transparent hover:border-primary/10"
+                    >
+                      {Content}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -221,23 +275,73 @@ const Dashboard: React.FC<Props> = ({ subjects, conflicts, onRemove }) => {
               </div>
               <div className="flex justify-between text-center items-end h-24 gap-2">
                 {[
-                  { d: 'M', h: '60%' }, { d: 'T', h: '85%', active: true }, { d: 'W', h: '45%' },
-                  { d: 'T', h: '55%' }, { d: 'F', h: '30%' }
-                ].map((day, i) => (
-                  <div key={i} className="flex flex-col items-center gap-3 flex-1 h-full">
-                    <div className={`w-full bg-slate-100 dark:bg-slate-800/40 rounded-full relative overflow-hidden h-full ${day.active ? 'ring-2 ring-primary dark:ring-white ring-offset-2 dark:ring-offset-slate-900' : ''}`}>
-                      <div
-                        className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 shadow-[0_-4px_10px_rgba(0,0,0,0.1)] ${day.active
-                          ? 'bg-gradient-to-t from-primary to-accent dark:from-white dark:to-slate-300'
-                          : 'bg-gradient-to-t from-primary/30 to-accent/30 dark:from-white/20 dark:to-white/5'
-                          }`}
-                        style={{ height: day.h }}
-                      ></div>
+                  { d: 'M', h: '60%', full: 'Monday' }, 
+                  { d: 'T', h: '85%', full: 'Tuesday' }, 
+                  { d: 'W', h: '45%', full: 'Wednesday' },
+                  { d: 'T', h: '55%', full: 'Thursday' }, 
+                  { d: 'F', h: '30%', full: 'Friday' }
+                ].map((day, i) => {
+                  const isActive = selectedDay === day.full;
+                  return (
+                    <div 
+                      key={i} 
+                      className="flex flex-col items-center gap-3 flex-1 h-full cursor-pointer group/bar"
+                      onClick={() => setSelectedDay(day.full)}
+                    >
+                      <div className={`w-full bg-slate-100 dark:bg-slate-800/40 rounded-full relative overflow-hidden h-full ${isActive ? 'ring-2 ring-primary dark:ring-white ring-offset-2 dark:ring-offset-slate-900' : ''}`}>
+                        <div
+                          className={`absolute bottom-0 w-full rounded-full transition-all duration-1000 shadow-[0_-4px_10px_rgba(0,0,0,0.1)] ${isActive
+                            ? 'bg-gradient-to-t from-primary to-accent dark:from-white dark:to-slate-300'
+                            : 'bg-gradient-to-t from-primary/30 to-accent/30 dark:from-white/20 dark:to-white/5'
+                            } group-hover/bar:from-primary group-hover/bar:to-accent transition-colors`}
+                          style={{ height: day.h }}
+                        ></div>
+                      </div>
+                      <span className={`text-[10px] font-black ${isActive ? 'text-primary dark:text-white' : 'text-slate-400'}`}>{day.d}</span>
                     </div>
-                    <span className={`text-[10px] font-black ${day.active ? 'text-primary dark:text-white' : 'text-slate-400'}`}>{day.d}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Selected Day Schedule Details */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col mt-6">
+          <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/30 rounded-t-2xl">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary dark:text-white text-xl">calendar_view_day</span>
+              <h3 className="font-black text-base text-primary dark:text-white">Schedule for {selectedDay}</h3>
+            </div>
+          </div>
+          <div className="p-5 md:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {selectedDaySchedule.length > 0 ? selectedDaySchedule.map((item) => {
+                const isOwner = item.userEmail === currentUserEmail;
+                return (
+                  <div key={item.id} className={`p-4 rounded-xl border-l-4 ${isOwner ? 'bg-primary/5 border-primary' : 'bg-slate-50 border-slate-300'} flex flex-col gap-2`}>
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">{item.startTime} - {item.endTime}</span>
+                      {!isOwner && <span className="text-[9px] font-black bg-slate-200 px-1.5 py-0.5 rounded uppercase">OTHER</span>}
+                    </div>
+                    <h4 className="font-black text-sm text-primary dark:text-slate-800">{item.title}</h4>
+                    <div className="flex items-center gap-3 mt-1 text-[10px] font-bold text-slate-500">
+                      <div className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm">location_on</span>
+                        <span>{item.room}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm">person</span>
+                        <span>{item.instructor}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="col-span-full py-6 text-center text-slate-400 font-bold italic text-sm">
+                  No activities scheduled for this day.
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,11 +1,19 @@
 
 import { Subject, Conflict, ConflictType } from './types';
 
+/**
+ * Converts HH:mm to total minutes from midnight.
+ * Logic reference: cpp-logic-reference/clash_logic.cpp
+ */
 export const timeToMinutes = (time: string): number => {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
 };
 
+/**
+ * Detects scheduling conflicts between subjects.
+ * Logic reference: cpp-logic-reference/clash_logic.cpp
+ */
 export const detectConflicts = (subjects: Subject[]): Conflict[] => {
   const conflicts: Conflict[] = [];
   
@@ -22,11 +30,14 @@ export const detectConflicts = (subjects: Subject[]): Conflict[] => {
         
         // Overlap detected
         if (start1 < end2 && start2 < end1) {
+          const isGlobal = s1.userEmail !== s2.userEmail;
           conflicts.push({
             id: `c-${s1.id}-${s2.id}`,
-            type: ConflictType.TIME_CLASH,
+            type: isGlobal ? ConflictType.ROOM_CLASH : ConflictType.TIME_CLASH,
             subjects: [s1.id, s2.id],
-            message: `${s1.title} overlaps with ${s2.title} on ${s1.day}s.`,
+            message: isGlobal 
+              ? `Global Clash: ${s1.title} (${s1.userEmail}) overlaps with ${s2.title} (${s2.userEmail}) on ${s1.day}s.`
+              : `${s1.title} overlaps with ${s2.title} on ${s1.day}s.`,
             timestamp: 'Just now'
           });
         }

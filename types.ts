@@ -22,6 +22,7 @@ export interface Subject {
   type: SubjectType;
   instructor?: string;
   color?: string; // Hex or CSS color
+  userEmail?: string; // Track owner
 }
 
 export enum ConflictType {

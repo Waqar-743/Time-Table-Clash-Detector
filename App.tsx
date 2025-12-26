@@ -9,6 +9,7 @@ import Timetable from './screens/Timetable';
 import AddSubject from './screens/AddSubject';
 import ClashResults from './screens/ClashResults';
 import Auth from './screens/Auth';
+import { supabase } from './supabaseClient';
 
 const Sidebar = ({ user, onLogout }: { user: User; onLogout: () => void }) => {
   const location = useLocation();
@@ -26,8 +27,8 @@ const Sidebar = ({ user, onLogout }: { user: User; onLogout: () => void }) => {
       <div className="hidden md:flex w-64 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-secondary h-full shrink-0">
         <div className="p-6">
           <div className="flex items-center gap-3">
-            <div className="bg-primary/10 dark:bg-white/10 p-2 rounded-xl text-primary dark:text-white">
-              <span className="material-symbols-outlined text-3xl">grid_view</span>
+            <div className="bg-primary/5 dark:bg-white/5 p-1.5 rounded-xl">
+              <img src="/Time-Table-Clash-Detector/logo.png" alt="Logo" className="size-10 object-contain" />
             </div>
             <div className="flex flex-col">
               <h1 className="text-primary dark:text-white text-lg font-bold leading-tight tracking-tighter">TimeSmart</h1>
@@ -104,30 +105,108 @@ export default function App() {
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  const [subjects, setSubjects] = useState<Subject[]>(() => {
-    const saved = localStorage.getItem('timesmart_data_v1');
-    return saved ? JSON.parse(saved) : INITIAL_SUBJECTS;
-  });
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('timesmart_data_v1', JSON.stringify(subjects));
+    if (user) {
+      fetchSubjects();
+    }
+  }, [user]);
+
+  const fetchSubjects = async () => {
+    setLoading(true);
+    // Fetch ALL subjects from the table to check for clashes with other users
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching subjects:', error);
+      setSubjects(INITIAL_SUBJECTS);
+    } else if (data) {
+      const formattedSubjects: Subject[] = data.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        day: s.day,
+        startTime: s.start_time.substring(0, 5),
+        endTime: s.end_time.substring(0, 5),
+        room: s.room,
+        type: s.subject_type,
+        instructor: s.instructor,
+        color: s.color,
+        // Store email to identify if it's the current user's or someone else's
+        userEmail: s.user_email 
+      }));
+      setSubjects(formattedSubjects);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     const detected = detectConflicts(subjects);
     setConflicts(detected);
   }, [subjects]);
 
-  const addSubject = (newSubject: Subject) => {
-    setSubjects(prev => [...prev, newSubject]);
-  };
+  const addSubject = async (newSubject: Subject) => {
+    const { data, error } = await supabase
+      .from('subjects')
+      .insert([{
+        title: newSubject.title,
+        day: newSubject.day,
+        start_time: newSubject.startTime,
+        end_time: newSubject.endTime,
+        room: newSubject.room,
+        subject_type: newSubject.type,
+        instructor: newSubject.instructor,
+        color: newSubject.color,
+        user_email: user?.email
+      }])
+      .select();
 
-  const removeSubject = (id: string) => {
-    if (confirm('Are you sure you want to remove this subject?')) {
-      setSubjects(prev => prev.filter(s => s.id !== id));
+    if (error) {
+      alert('Error adding subject: ' + error.message);
+    } else {
+      fetchSubjects();
     }
   };
 
-  const updateSubject = (updatedSubject: Subject) => {
-    setSubjects(prev => prev.map(s => s.id === updatedSubject.id ? updatedSubject : s));
+  const removeSubject = async (id: string) => {
+    if (confirm('Are you sure you want to remove this subject?')) {
+      const { error } = await supabase
+        .from('subjects')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert('Error removing subject: ' + error.message);
+      } else {
+        setSubjects(prev => prev.filter(s => s.id !== id));
+      }
+    }
+  };
+
+  const updateSubject = async (updatedSubject: Subject) => {
+    const { error } = await supabase
+      .from('subjects')
+      .update({
+        title: updatedSubject.title,
+        day: updatedSubject.day,
+        start_time: updatedSubject.startTime,
+        end_time: updatedSubject.endTime,
+        room: updatedSubject.room,
+        subject_type: updatedSubject.type,
+        instructor: updatedSubject.instructor,
+        color: updatedSubject.color
+      })
+      .eq('id', updatedSubject.id);
+
+    if (error) {
+      alert('Error updating subject: ' + error.message);
+    } else {
+      fetchSubjects();
+    }
   };
 
   const handleLogin = (userData: User) => {
@@ -152,8 +231,8 @@ export default function App() {
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <div className="bg-primary/10 dark:bg-white/10 p-1.5 rounded-lg text-primary dark:text-white">
-              <span className="material-symbols-outlined text-xl">grid_view</span>
+            <div className="bg-primary/5 dark:bg-white/5 p-1 rounded-lg">
+              <img src="/Time-Table-Clash-Detector/logo.png" alt="Logo" className="size-8 object-contain" />
             </div>
             <h1 className="text-primary dark:text-white text-lg font-black tracking-tighter">TimeSmart</h1>
           </div>
@@ -168,24 +247,30 @@ export default function App() {
         <Sidebar user={user} onLogout={handleLogout} />
 
         <div className="flex-1 flex flex-col h-full overflow-hidden pb-16 md:pb-0">
-          <Routes>
-            <Route
-              path="/"
-              element={<Dashboard subjects={subjects} conflicts={conflicts} onRemove={removeSubject} />}
-            />
-            <Route
-              path="/timetable"
-              element={<Timetable subjects={subjects} onRemove={removeSubject} onUpdate={updateSubject} />}
-            />
-            <Route
-              path="/add"
-              element={<AddSubject onAdd={addSubject} />}
-            />
-            <Route
-              path="/clashes"
-              element={<ClashResults subjects={subjects} conflicts={conflicts} onRemove={removeSubject} />}
-            />
-          </Routes>
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <Routes>
+              <Route
+                path="/"
+                element={<Dashboard subjects={subjects} conflicts={conflicts} onRemove={removeSubject} currentUserEmail={user.email} />}
+              />
+              <Route
+                path="/timetable"
+                element={<Timetable subjects={subjects} onRemove={removeSubject} onUpdate={updateSubject} currentUserEmail={user.email} />}
+              />
+              <Route
+                path="/add"
+                element={<AddSubject onAdd={addSubject} />}
+              />
+              <Route
+                path="/clashes"
+                element={<ClashResults subjects={subjects} conflicts={conflicts} onRemove={removeSubject} />}
+              />
+            </Routes>
+          )}
         </div>
       </div>
     </HashRouter>
