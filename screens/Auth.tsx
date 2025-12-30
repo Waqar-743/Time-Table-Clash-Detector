@@ -16,15 +16,33 @@ const Auth: React.FC<Props> = ({ onLogin }) => {
   });
 
   // Reference to C++ logic in cpp-logic-reference/auth_logic.cpp
-  const validatePassword = (pass: string) => {
-    return pass.length >= 8 && /[a-zA-Z]/.test(pass) && /[0-9]/.test(pass);
+  const validatePassword = (pass: string): number => {
+    if (pass.length < 8) return 0;
+    
+    let hasLetter = 0;
+    let hasNumber = 0;
+    
+    for (let i = 0; i < pass.length; i++) {
+      const c = pass[i];
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+        hasLetter = 1;
+      }
+      if (c >= '0' && c <= '9') {
+        hasNumber = 1;
+      }
+    }
+    
+    if (hasLetter === 1 && hasNumber === 1) {
+      return 1;
+    }
+    return 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    if (!validatePassword(formData.password)) {
+    if (validatePassword(formData.password) === 0) {
       alert('Password must be at least 8 characters and contain both letters and numbers.');
       setLoading(false);
       return;

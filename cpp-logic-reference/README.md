@@ -11,4 +11,4 @@ It serves as a reference for the business logic used in the application.
 | Clash Detection | `clash_logic.cpp` | `utils.ts` |
 | Data Formatting | `data_formatter.cpp` | `App.tsx` (fetch/add logic) |
 
-**Note:** The application uses TypeScript for execution. This folder can be safely deleted without affecting the application's functionality.
+**Note:** The application uses TypeScript for execution. This folder can be safely deleted without affecting the application's functionality. The C++ logic here has been simplified to the most basic level (using `int` instead of `bool`, manual loops, and no classes) for maximum clarity.

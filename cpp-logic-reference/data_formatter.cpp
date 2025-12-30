@@ -1,24 +1,16 @@
 #include <iostream>
 #include <string>
-#include <map>
 
 /**
- * Logic for formatting data between the app and Supabase.
- * Reference for: App.tsx (fetchSubjects / addSubject)
+ * Simplified logic for data formatting.
  */
-class DataFormatter {
-public:
-    static std::map<std::string, std::string> formatForSupabase(
-        std::string title, 
-        std::string startTime, 
-        std::string endTime,
-        std::string userEmail
-    ) {
-        std::map<std::string, std::string> row;
-        row["title"] = title;
-        row["start_time"] = startTime; // Ensure HH:mm:ss if needed
-        row["end_time"] = endTime;
-        row["user_email"] = userEmail;
-        return row;
-    }
-};
+
+// Combines strings into a simple format
+std::string formatSubject(std::string title, std::string start, std::string end) {
+    std::string result = "";
+    result = result + "Subject: " + title;
+    result = result + " (Starts: " + start;
+    result = result + ", Ends: " + end + ")";
+    return result;
+}
+

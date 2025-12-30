@@ -1,28 +1,30 @@
 #include <iostream>
-#include <vector>
 #include <string>
 
 /**
- * Core clash detection algorithm.
- * Reference for: utils.ts (detectConflicts)
+ * Simplified logic for clash detection.
+ * Returns 1 for true, 0 for false.
  */
-struct TimeSlot {
-    int startMinutes;
-    int endMinutes;
-};
 
-class ClashLogic {
-public:
-    static int timeToMinutes(const std::string& time) {
-        // Expected format "HH:mm"
-        int hours = std::stoi(time.substr(0, 2));
-        int minutes = std::stoi(time.substr(3, 2));
-        return hours * 60 + minutes;
-    }
+// Converts "HH:mm" to total minutes
+int getMinutes(const std::string& time) {
+    // Get digits manually
+    int h1 = time[0] - '0';
+    int h2 = time[1] - '0';
+    int m1 = time[3] - '0';
+    int m2 = time[4] - '0';
+    
+    int hours = h1 * 10 + h2;
+    int minutes = m1 * 10 + m2;
+    
+    return (hours * 60) + minutes;
+}
 
-    static bool isOverlapping(TimeSlot t1, TimeSlot t2) {
-        // A overlap exists if the start of one is before the end of the other
-        // and vice versa.
-        return (t1.startMinutes < t2.endMinutes && t2.startMinutes < t1.endMinutes);
+// Checks if two time ranges overlap
+int checkOverlap(int start1, int end1, int start2, int end2) {
+    if (start1 < end2 && start2 < end1) {
+        return 1;
     }
-};
+    return 0;
+}
+
