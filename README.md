@@ -1,7 +1,5 @@
 # TimeSmart Clash Detector
 
-![TimeSmart Banner](https://picsum.photos/seed/timesmart/1200/400)
-
 ## 🔗 [Live Demo](https://waqar-743.github.io/Time-Table-Clash-Detector/)
 
 **TimeSmart** is a premium, high-performance timetable management and clash detection system designed for academic environments. Built with a focus on visual excellence and intuitive user experience, it allows students and instructors to seamlessly manage their schedules, detect overlaps, and organize their academic life.
